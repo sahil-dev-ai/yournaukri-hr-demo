@@ -107,9 +107,14 @@
         /***********************
          * CONSENT – SETTINGS *
          ***********************/
-        // 👉 Replace with YOUR deployed Netlify function that returns the Leegality access token
+        // 👉 Old token function – still used for Manage Privacy
         const TOKEN_URL =
             "https://consent-token-fetch.netlify.app/.netlify/functions/getToken";
+
+        // 👉 NEW: Combined backend (token + register) – used for primary consent flow
+        const CONSENT_REGISTER_URL =
+            "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register";
+
         // 👉 Your Consent Profile Id (kept same as your previous demo)
         const CONSENT_PROFILE_ID = "6a3652e6-9604-4458-967f-22c9b2bdf304";
 
@@ -210,6 +215,8 @@
                 document.body.appendChild(s);
             });
         }
+
+        // still used for Manage Privacy (update)
         async function getBearerToken() {
             const r = await fetch(TOKEN_URL);
             const j = await r.json();
@@ -217,7 +224,7 @@
             return j.access_token;
         }
 
-        // Step 2: Open consent (per-job)
+        // NEW: Consent flow using backend combined function (token + register)
         async function handleConsent() {
             try {
                 if (!selectedJob?.id) {
@@ -228,51 +235,51 @@
 
                 showLoader(true);
 
-                // Get token
-                const token = await getBearerToken();
-
-                // Build CPID using underscore (no '+')
+                // Demo user's details (same as form)
+                const name = "Kiran Kumar";
                 const email = "kirankumar@email.com";
-                const cpid = (
-                    email.replace("@", "_") +
-                    "_" +
-                    Date.now()
-                ).toLowerCase();
+                const phone = "981271839123";
 
-                // Register
-                const regRes = await fetch(
-                    "https://sandbox-gateway.leegality.com/consent-runner/api/v1/consents/client/register",
-                    {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            consentProfileId: CONSENT_PROFILE_ID,
-                            consentProfileVersion: 1,
-                            principal: {
-                                id: cpid,
-                                email,
-                                name: "Kiran Kumar",
-                                phone: "981271839123",
-                            },
-                            publicUrlExpiry: 60,
-                            sessionExpiry: 60,
-                        }),
-                    }
-                );
-                const reg = await regRes.json();
-                const url = reg?.data?.consentCollectUrl;
+                // Call backend: token + register from server-side
+                const res = await fetch(CONSENT_REGISTER_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        phone,
+                        consentProfileId: CONSENT_PROFILE_ID,
+                        consentProfileVersion: 1,
+                    }),
+                });
 
-                // If no fresh URL, assume consent exists for this new CPID (sandbox behavior)
+                const data = await res.json();
+
+                if (!res.ok) {
+                    console.error("Consent register backend error:", data);
+                    showLoader(false);
+                    showMessage(
+                        "Consent registration failed. Please try again.",
+                        "Error"
+                    );
+                    return;
+                }
+
+                const url = data?.consentUrl;
+                const cpid =
+                    data?.cpid || data?.principalId || null;
+
+                // If no fresh URL, assume consent already exists for this demo CPID
                 if (!url) {
                     consentByJob[jobId] = { given: true, principalId: cpid };
-                    principalId = cpid; // keep latest for Manage Privacy
+                    if (cpid) {
+                        principalId = cpid;
+                    }
                     enableManagePrivacyButton();
 
                     showLoader(false);
-                    // re-render the same step to reflect success state & enable submit
                     renderApplicationForm(2);
                     showMessage(
                         "Consent already exists for this demo user. You can submit the application now.",
@@ -284,14 +291,17 @@
                 // Load SDK & open
                 await loadCollectorSdkOnce();
                 const collector = new window.LeegalityConsentCollector({ url });
+
                 collector.on("response", (resp) => {
                     showLoader(false);
                     if (resp?.type === "consentCollect.success") {
                         consentByJob[jobId] = { given: true, principalId: cpid };
-                        principalId = cpid; // keep latest
+                        if (cpid) {
+                            principalId = cpid;
+                        }
                         enableManagePrivacyButton();
 
-                        // re-render the same step to reflect success state & enable submit
+                        // Re-render the same step to reflect success state & enable submit
                         renderApplicationForm(2);
                         showMessage(
                             "Thanks! Your privacy preferences were saved.",
@@ -299,8 +309,14 @@
                         );
                     } else if (resp?.type === "consentCollect.closed") {
                         // user closed; keep page as-is
+                    } else {
+                        showMessage(
+                            "Consent is required to proceed with the application.",
+                            "Consent not completed"
+                        );
                     }
                 });
+
                 collector.open();
             } catch (e) {
                 console.error(e);
@@ -312,7 +328,7 @@
             }
         }
 
-        // Header: Manage Privacy
+        // Header: Manage Privacy (still uses getToken + update endpoint)
         async function handleManagePrivacy() {
             // Use the latest principalId (from most recent consent)
             if (!consentGiven || !principalId) {
