@@ -1,209 +1,440 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>YourNaukri App - Job Portal</title>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YourNaukri App - Job Portal</title>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <style>
-    body {
-      font-family: "Inter", sans-serif;
-      background-color: #f7f9fb;
-    }
-
-    .app-container {
-      max-width: 600px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-    }
-
-    .job-card {
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .job-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    .tag {
-      border: 1px solid #d1d5db;
-      color: #4b5563;
-    }
-
-    .spin {
-      width: 3.5rem;
-      height: 3.5rem;
-      border: 4px solid rgba(255, 255, 255, 0.25);
-      border-top-color: #3b82f6;
-      border-radius: 9999px;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f7f9fb;
       }
-    }
-  </style>
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            "primary-blue": "#1E40AF",
-            "light-blue": "#3B82F6",
-            "background-gray": "#f7f9fb",
+      .app-container {
+        max-width: 600px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      }
+
+      .job-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .job-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
+      }
+
+      .tag {
+        border: 1px solid #d1d5db;
+        color: #4b5563;
+      }
+
+      /* overlay loader spinner */
+      .spin {
+        width: 3.5rem;
+        height: 3.5rem;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #3b82f6;
+        border-radius: 9999px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "primary-blue": "#1E40AF",
+              "light-blue": "#3B82F6",
+              "background-gray": "#f7f9fb",
+            },
           },
         },
-      },
-    };
-  </script>
-</head>
+      };
+    </script>
+  </head>
 
-<body class="min-h-screen flex items-start justify-center p-4 sm:p-6 bg-background-gray">
+  <body
+    class="min-h-screen flex items-start justify-center p-4 sm:p-6 bg-background-gray"
+  >
+    <div
+      id="app-container"
+      class="app-container w-full bg-white rounded-xl overflow-hidden mt-8"
+    >
+      <!-- Header -->
+      <header
+        class="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10"
+      >
+        <h1 class="text-xl font-bold text-gray-800">YourNaukri App</h1>
 
-  <div id="app-container" class="app-container w-full bg-white rounded-xl overflow-hidden mt-8">
+        <div class="flex space-x-4 text-sm text-gray-500">
+          <!-- Manage Privacy: now HIDDEN until consent -->
+          <button
+            id="manage-privacy-link"
+            class="hidden cursor-pointer hover:text-primary-blue disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled
+            onclick="handleManagePrivacy()"
+          >
+            Manage Privacy
+          </button>
 
-    <!-- Header -->
-    <header class="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
-      <h1 class="text-xl font-bold text-gray-800">YourNaukri App</h1>
-      <div class="flex space-x-4 text-sm text-gray-500">
-        <button
-          id="manage-privacy-link"
-          class="hidden cursor-pointer hover:text-primary-blue disabled:opacity-40 disabled:cursor-not-allowed"
-          disabled
-          onclick="handleManagePrivacy()">
-          Manage Privacy
-        </button>
-        <span class="font-semibold text-gray-700">Welcome, Kiran</span>
+          <span class="font-semibold text-gray-700">Welcome, Kiran</span>
+        </div>
+      </header>
+
+      <!-- Main View -->
+      <main id="content-view" class="p-4 sm:p-6"></main>
+
+      <!-- Message Box -->
+      <div
+        id="message-box"
+        class="fixed inset-0 bg-gray-600/50 hidden items-center justify-center z-50"
+      >
+        <div
+          class="bg-white p-6 rounded-lg shadow-2xl w-11/12 max-w-sm"
+        >
+          <h3
+            id="message-title"
+            class="text-lg font-semibold mb-3 text-gray-900"
+          >
+            Notification
+          </h3>
+
+          <p
+            id="message-text"
+            class="text-gray-700 mb-4"
+          ></p>
+
+          <button
+            onclick="closeMessage()"
+            class="w-full bg-primary-blue text-white py-2 rounded-lg hover:bg-light-blue transition"
+          >
+            OK
+          </button>
+        </div>
       </div>
-    </header>
 
-    <!-- Main View -->
-    <main id="content-view" class="p-4 sm:p-6"></main>
-
-    <!-- Message Box -->
-    <div id="message-box" class="fixed inset-0 bg-gray-600/50 hidden items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-2xl w-11/12 max-w-sm">
-        <h3 id="message-title" class="text-lg font-semibold mb-3 text-gray-900">
-          Notification
-        </h3>
-        <p id="message-text" class="text-gray-700 mb-4"></p>
-        <button onclick="closeMessage()"
-          class="w-full bg-primary-blue text-white py-2 rounded-lg hover:bg-light-blue transition">
-          OK
-        </button>
+      <!-- Fullscreen Loader (used while calling consent APIs / opening SDK) -->
+      <div
+        id="loader"
+        class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50"
+      >
+        <div class="spin"></div>
       </div>
     </div>
 
-    <!-- Loader -->
-    <div id="loader" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-      <div class="spin"></div>
-    </div>
+    <script>
+      /***********************
+       * CONSENT – SETTINGS
+       ***********************/
+      // 👉 Old token function – still used for Manage Privacy
+      const TOKEN_URL =
+        "https://consent-token-fetch.netlify.app/.netlify/functions/getToken";
 
-  </div>
+      // 👉 NEW: Combined backend (token + register) – used for primary consent flow
+      const CONSENT_REGISTER_URL =
+        "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register";
 
-  <script>
-    /***********************
-     * CONSENT – SETTINGS
-     ***********************/
-    const TOKEN_URL =
-      "https://consent-token-fetch.netlify.app/.netlify/functions/getToken";
+      // 👉 Your Consent Profile Id (kept same as your previous demo)
+      const CONSENT_PROFILE_ID =
+        "6a3652e6-9604-4458-967f-22c9b2bdf304";
 
-    const CONSENT_REGISTER_URL =
-      "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register";
+      /* CHANGED: track consent per job */
+      let consentGiven = false;
+      let principalId = null;
+      let consentByJob = {};
+      let selectedJob = {};
 
-    const CONSENT_PROFILE_ID =
-      "6a3652e6-9604-4458-967f-22c9b2bdf304";
+      const VIEWS = {
+        JOB_LIST: "job_list",
+        JOB_DETAIL: "job_detail",
+        APPLICATION_FORM: "application_form",
+        CONFIRMATION: "confirmation",
+      };
 
-    let consentGiven = false;
-    let principalId = null;
-    let consentByJob = {};
-    let selectedJob = {};
+      let currentView = VIEWS.JOB_LIST;
 
-    const VIEWS = {
-      JOB_LIST: "job_list",
-      JOB_DETAIL: "job_detail",
-      APPLICATION_FORM: "application_form",
-      CONFIRMATION: "confirmation",
-    };
+      const MOCK_JOBS = [
+        {
+          id: 1,
+          title: "Front-End Engineer",
+          location: "Delhi",
+          salary: "5-6LPA",
+          type: "Full Time",
+          description:
+            "We are looking for a skilled Front-End Engineer to join our dynamic team. You will be responsible for implementing visual elements that users see and interact with in a web application. Excellent proficiency in HTML, CSS, JavaScript, and a modern framework (like React or Vue) is required.",
+        },
+        {
+          id: 2,
+          title: "Graphic Designer",
+          location: "Delhi",
+          salary: "5-6LPA",
+          type: "Full Time",
+          description:
+            "Seeking a creative Graphic Designer to develop engaging and user-friendly designs for digital and print media. Key responsibilities include creating visual concepts, using design software, and collaborating with marketing and product teams. Portfolio required.",
+        },
+        {
+          id: 3,
+          title: "UX Specialist",
+          location: "Remote",
+          salary: "7-10LPA",
+          type: "Part Time",
+          description:
+            "A remote opportunity for a UX Specialist to conduct user research, create wireframes and prototypes, and work with product managers to define and implement innovative solutions for product direction, visuals, and experience.",
+        },
+      ];
 
-    let currentView = VIEWS.JOB_LIST;
+      /***********************
+       * UTIL & UI HELPERS
+       ***********************/
+      function showMessage(text, title = "Notification") {
+        document.getElementById("message-title").textContent = title;
+        document.getElementById("message-text").textContent = text;
 
-    const MOCK_JOBS = [
-      {
-        id: 1,
-        title: "Front-End Engineer",
-        location: "Delhi",
-        salary: "5-6LPA",
-        type: "Full Time",
-        description:
-          "We are looking for a skilled Front-End Engineer to join our dynamic team. You will be responsible for implementing visual elements that users see and interact with in a web application. Excellent proficiency in HTML, CSS, JavaScript, and a modern framework (like React or Vue) is required.",
-      },
-      {
-        id: 2,
-        title: "Graphic Designer",
-        location: "Delhi",
-        salary: "5-6LPA",
-        type: "Full Time",
-        description:
-          "Seeking a creative Graphic Designer to develop engaging and user-friendly designs for digital and print media. Key responsibilities include creating visual concepts, using design software, and collaborating with marketing and product teams. Portfolio required.",
-      },
-      {
-        id: 3,
-        title: "UX Specialist",
-        location: "Remote",
-        salary: "7-10LPA",
-        type: "Part Time",
-        description:
-          "A remote opportunity for a UX Specialist to conduct user research, create wireframes and prototypes, and work with product managers to define and implement innovative solutions for product direction, visuals, and experience.",
-      },
-    ];
+        const box = document.getElementById("message-box");
+        box.classList.remove("hidden");
+        box.classList.add("flex");
+      }
 
-    /***********************
-     * UTIL & UI HELPERS
-     ***********************/
-    function showMessage(text, title = "Notification") {
-      document.getElementById("message-title").textContent = title;
-      document.getElementById("message-text").textContent = text;
-      const box = document.getElementById("message-box");
-      box.classList.remove("hidden");
-      box.classList.add("flex");
-    }
+      function closeMessage() {
+        const box = document.getElementById("message-box");
+        box.classList.add("hidden");
+        box.classList.remove("flex");
+      }
 
-    function closeMessage() {
-      const box = document.getElementById("message-box");
-      box.classList.add("hidden");
-      box.classList.remove("flex");
-    }
+      function showLoader(show = true) {
+        const el = document.getElementById("loader");
 
-    function showLoader(show = true) {
-      const el = document.getElementById("loader");
-      el.classList.toggle("hidden", !show);
-      el.classList.toggle("flex", show);
-    }
+        if (show) {
+          el.classList.remove("hidden");
+          el.classList.add("flex");
+        } else {
+          el.classList.add("hidden");
+          el.classList.remove("flex");
+        }
+      }
 
-    function enableManagePrivacyButton() {
-      const btn = document.getElementById("manage-privacy-link");
-      const anyConsent = Object.values(consentByJob).some(v => v?.given);
-      consentGiven = anyConsent;
-      btn.classList.toggle("hidden", !anyConsent);
-      btn.disabled = !anyConsent;
-    }
+      function enableManagePrivacyButton() {
+        const btn = document.getElementById("manage-privacy-link");
+        const anyConsent = Object.values(consentByJob).some(
+          (v) => v?.given
+        );
 
-    /***********************
-     * INIT
-     ***********************/
-    document.addEventListener("DOMContentLoaded", () => {
-      renderJobList();
-      enableManagePrivacyButton();
-    });
-  </script>
+        consentGiven = anyConsent;
 
-</body>
+        if (anyConsent) {
+          btn.classList.remove("hidden");
+          btn.disabled = false;
+        } else {
+          btn.classList.add("hidden");
+          btn.disabled = true;
+        }
+      }
+
+      /***********************
+       * CONSENT – CORE
+       ***********************/
+      async function loadCollectorSdkOnce() {
+        if (window.LeegalityConsentCollector) return;
+
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src =
+            "https://sdk.consent.in/consent-collect-sdk.min.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.body.appendChild(s);
+        });
+      }
+
+      async function getBearerToken() {
+        const r = await fetch(TOKEN_URL);
+        const j = await r.json();
+        if (!j || !j.access_token)
+          throw new Error("Token fetch failed");
+        return j.access_token;
+      }
+
+      async function handleConsent() {
+        try {
+          if (!selectedJob?.id) {
+            showMessage("No job selected.", "Error");
+            return;
+          }
+
+          const jobId = selectedJob.id;
+          showLoader(true);
+
+          const name = "Kiran Kumar";
+          const email = "kirankumar@email.com";
+          const phone = "981271839123";
+
+          const res = await fetch(CONSENT_REGISTER_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name,
+              email,
+              phone,
+              consentProfileId: CONSENT_PROFILE_ID,
+              consentProfileVersion: 1,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            showLoader(false);
+            showMessage(
+              "Consent registration failed. Please try again.",
+              "Error"
+            );
+            return;
+          }
+
+          const url = data?.consentUrl;
+          const cpid =
+            data?.cpid || data?.principalId || null;
+
+          if (!url) {
+            consentByJob[jobId] = {
+              given: true,
+              principalId: cpid,
+            };
+
+            if (cpid) {
+              principalId = cpid;
+            }
+
+            enableManagePrivacyButton();
+            showLoader(false);
+            renderApplicationForm(2);
+
+            showMessage(
+              "Consent already exists for this demo user. You can submit the application now.",
+              "Consent"
+            );
+            return;
+          }
+
+          await loadCollectorSdkOnce();
+
+          const collector =
+            new window.LeegalityConsentCollector({ url });
+
+          collector.on("response", (resp) => {
+            showLoader(false);
+
+            if (resp?.type === "consentCollect.success") {
+              consentByJob[jobId] = {
+                given: true,
+                principalId: cpid,
+              };
+
+              if (cpid) {
+                principalId = cpid;
+              }
+
+              enableManagePrivacyButton();
+              renderApplicationForm(2);
+
+              showMessage(
+                "Thanks! Your privacy preferences were saved.",
+                "Consent accepted"
+              );
+            } else if (
+              resp?.type === "consentCollect.closed"
+            ) {
+            } else {
+              showMessage(
+                "Consent is required to proceed with the application.",
+                "Consent not completed"
+              );
+            }
+          });
+
+          collector.open();
+        } catch (e) {
+          showLoader(false);
+          showMessage(
+            "Could not start consent flow. Please try again.",
+            "Error"
+          );
+        }
+      }
+
+      async function handleManagePrivacy() {
+        if (!consentGiven || !principalId) {
+          showMessage(
+            "Please give consent during application first. Then you can manage privacy here.",
+            "Manage Privacy"
+          );
+          return;
+        }
+
+        try {
+          showLoader(true);
+          const token = await getBearerToken();
+
+          const res = await fetch(
+            "https://sandbox-gateway.leegality.com/consent-runner/api/v1/consents/client/update",
+            {
+              method: "POST",
+              headers: {
+                Authorization: Bearer ${token},
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                principalId,
+                preferenceUrlType: "PRIVACY",
+                publicUrlExpiry: 60,
+                sessionExpiry: 60,
+              }),
+            }
+          );
+
+          const j = await res.json();
+          const url = j?.data?.privacyCenterUrl;
+          if (!url) throw new Error("No privacyCenterUrl");
+
+          await loadCollectorSdkOnce();
+          const collector =
+            new window.LeegalityConsentCollector({ url });
+          collector.open();
+
+          showLoader(false);
+        } catch (e) {
+          showLoader(false);
+          showMessage(
+            "Could not open Privacy Center. Please try again.",
+            "Error"
+          );
+        }
+      }
+
+      /***********************
+       * INIT
+       ***********************/
+      document.addEventListener("DOMContentLoaded", () => {
+        renderJobList();
+        enableManagePrivacyButton();
+      });
+    </script>
+  </body>
 </html>
