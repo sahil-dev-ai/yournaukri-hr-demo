@@ -101,21 +101,17 @@
         /***********************
          * CONSENT – SETTINGS *
          ***********************/
-        // 👉 Old token function – updated to point to consent-register
-        const TOKEN_URL =
-            "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register";
-
-        // 👉 NEW: Combined backend (token + register) – used for primary consent flow
+        // 👉 Combined backend endpoint used for both registration and privacy updates
         const CONSENT_REGISTER_URL =
             "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register";
 
-        // 👉 Your Consent Profile Id (kept same as your previous demo)
+        // 👉 Your Consent Profile Id
         const CONSENT_PROFILE_ID = "6a3652e6-9604-4458-967f-22c9b2bdf304";
 
-        /* CHANGED: track consent per job */
-        let consentGiven = false; // overall flag (true if any job has consent)
-        let principalId = null; // last CPID used for Privacy Center
-        let consentByJob = {}; // { [jobId]: { given: boolean, principalId: string } }
+        /* track consent per job */
+        let consentGiven = false; 
+        let principalId = null; 
+        let consentByJob = {}; 
 
         let selectedJob = {};
 
@@ -167,11 +163,13 @@
             box.classList.remove("hidden");
             box.classList.add("flex");
         }
+        
         function closeMessage() {
             const box = document.getElementById("message-box");
             box.classList.add("hidden");
             box.classList.remove("flex");
         }
+        
         function showLoader(show = true) {
             const el = document.getElementById("loader");
             if (show) {
@@ -182,11 +180,11 @@
                 el.classList.remove("flex");
             }
         }
+        
         function enableManagePrivacyButton() {
-            // Now controls visibility (hidden until any job has consent)
             const btn = document.getElementById("manage-privacy-link");
             const anyConsent = Object.values(consentByJob).some((v) => v?.given);
-            consentGiven = anyConsent; // keep original flag meaning "some consent exists"
+            consentGiven = anyConsent; 
             if (anyConsent) {
                 btn.classList.remove("hidden");
                 btn.disabled = false;
@@ -210,15 +208,7 @@
             });
         }
 
-        // still used for Manage Privacy (update)
-        async function getBearerToken() {
-            const r = await fetch(TOKEN_URL);
-            const j = await r.json();
-            if (!j || !j.access_token) throw new Error("Token fetch failed");
-            return j.access_token;
-        }
-
-        // NEW: Consent flow using backend combined function (token + register)
+        // Registration Flow
         async function handleConsent() {
             try {
                 if (!selectedJob?.id) {
@@ -229,18 +219,17 @@
 
                 showLoader(true);
 
-                // Demo user's details (same as form)
                 const name = "Kiran Kumar";
                 const email = "kirankumar@email.com";
                 const phone = "981271839123";
 
-                // Call backend: token + register from server-side
                 const res = await fetch(CONSENT_REGISTER_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
+                        action: "register", // Helps your backend distinguish requests
                         name,
                         email,
                         phone,
@@ -262,10 +251,8 @@
                 }
 
                 const url = data?.consentUrl;
-                const cpid =
-                    data?.cpid || data?.principalId || null;
+                const cpid = data?.cpid || data?.principalId || null;
 
-                // If no fresh URL, assume consent already exists for this demo CPID
                 if (!url) {
                     consentByJob[jobId] = { given: true, principalId: cpid };
                     if (cpid) {
@@ -282,7 +269,6 @@
                     return;
                 }
 
-                // Load SDK & open
                 await loadCollectorSdkOnce();
                 const collector = new window.LeegalityConsentCollector({ url });
 
@@ -295,7 +281,6 @@
                         }
                         enableManagePrivacyButton();
 
-                        // Re-render the same step to reflect success state & enable submit
                         renderApplicationForm(2);
                         showMessage(
                             "Thanks! Your privacy preferences were saved.",
@@ -322,9 +307,8 @@
             }
         }
 
-        // Header: Manage Privacy (still uses getToken + update endpoint)
+        // Manage Privacy Flow
         async function handleManagePrivacy() {
-            // Use the latest principalId (from most recent consent)
             if (!consentGiven || !principalId) {
                 showMessage(
                     "Please give consent during application first. Then you can manage privacy here.",
@@ -334,17 +318,13 @@
             }
             try {
                 showLoader(true);
-                const token = await getBearerToken();
-                const res = await fetch(
-                    // UPDATED THIS ENDPOINT
-                    "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register",
-                    {
+                const res = await fetch(CONSENT_REGISTER_URL, {
                         method: "POST",
                         headers: {
-                            Authorization: `Bearer ${token}`,
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
+                            action: "update", // Helps your backend route this request
                             principalId,
                             preferenceUrlType: "PRIVACY",
                             publicUrlExpiry: 60,
@@ -352,9 +332,13 @@
                         }),
                     }
                 );
+                
                 const j = await res.json();
-                const url = j?.data?.privacyCenterUrl;
-                if (!url) throw new Error("No privacyCenterUrl");
+                
+                // Adjusted to check multiple possible return keys depending on your backend
+                const url = j?.consentUrl || j?.data?.privacyCenterUrl || j?.privacyCenterUrl;
+                
+                if (!url) throw new Error("No privacyCenterUrl returned from backend");
 
                 await loadCollectorSdkOnce();
                 const collector = new window.LeegalityConsentCollector({ url });
