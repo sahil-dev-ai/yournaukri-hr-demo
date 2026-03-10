@@ -101,17 +101,17 @@
         /***********************
          * CONSENT – SETTINGS *
          ***********************/
-        // 👉 Combined backend endpoint used for both registration and privacy updates
         const CONSENT_REGISTER_URL =
             "https://consent-token-fetch.netlify.app/.netlify/functions/consent-register";
 
-        // 👉 Your Consent Profile Id
         const CONSENT_PROFILE_ID = "6a3652e6-9604-4458-967f-22c9b2bdf304";
+        const PREPARATION_DELAY_MS = 15000; // 15 seconds cooldown
 
         /* track consent per job */
         let consentGiven = false; 
         let principalId = null; 
         let consentByJob = {}; 
+        let consentTimestamps = {}; // Tracks exactly when consent was given for UI cooldowns
 
         let selectedJob = {};
 
@@ -181,13 +181,47 @@
             }
         }
         
-        function enableManagePrivacyButton() {
+        function enableManagePrivacyButton(skipCooldown = false) {
             const btn = document.getElementById("manage-privacy-link");
             const anyConsent = Object.values(consentByJob).some((v) => v?.given);
             consentGiven = anyConsent; 
+            
             if (anyConsent) {
                 btn.classList.remove("hidden");
+                
+                // If bypassed because consent already existed, skip the timer
+                if (skipCooldown) {
+                    btn.disabled = false;
+                    btn.textContent = "Manage Privacy";
+                    btn.classList.remove("cursor-not-allowed", "opacity-40");
+                    return;
+                }
+
+                // Check cooldown timer
+                const completedTime = consentTimestamps[principalId];
+                if (completedTime) {
+                    const elapsed = Date.now() - completedTime;
+                    if (elapsed < PREPARATION_DELAY_MS) {
+                        const remainingTime = PREPARATION_DELAY_MS - elapsed;
+                        
+                        btn.disabled = true;
+                        btn.textContent = "Preparing Privacy Center...";
+                        btn.classList.add("cursor-not-allowed", "opacity-40");
+                        
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = "Manage Privacy";
+                            btn.classList.remove("cursor-not-allowed", "opacity-40");
+                        }, remainingTime);
+                        return;
+                    }
+                }
+
+                // Default active state if no timer applies
                 btn.disabled = false;
+                btn.textContent = "Manage Privacy";
+                btn.classList.remove("cursor-not-allowed", "opacity-40");
+
             } else {
                 btn.classList.add("hidden");
                 btn.disabled = true;
@@ -229,7 +263,7 @@
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        action: "register", // Helps your backend distinguish requests
+                        action: "register",
                         name,
                         email,
                         phone,
@@ -258,7 +292,7 @@
                     if (cpid) {
                         principalId = cpid;
                     }
-                    enableManagePrivacyButton();
+                    enableManagePrivacyButton(true); // pass true to skip cooldown
 
                     showLoader(false);
                     renderApplicationForm(2);
@@ -278,8 +312,10 @@
                         consentByJob[jobId] = { given: true, principalId: cpid };
                         if (cpid) {
                             principalId = cpid;
+                            consentTimestamps[cpid] = Date.now(); // track when consent was given
                         }
-                        enableManagePrivacyButton();
+                        
+                        enableManagePrivacyButton(false);
 
                         renderApplicationForm(2);
                         showMessage(
@@ -319,12 +355,12 @@
             try {
                 showLoader(true);
                 const res = await fetch(CONSENT_REGISTER_URL, {
-                        method: "POST",
+                        method: "POST", // FIXED: Now making a POST request
                         headers: {
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            action: "update", // Helps your backend route this request
+                            action: "update", 
                             principalId,
                             preferenceUrlType: "PRIVACY",
                             publicUrlExpiry: 60,
@@ -335,7 +371,6 @@
                 
                 const j = await res.json();
                 
-                // Adjusted to check multiple possible return keys depending on your backend
                 const url = j?.consentUrl || j?.data?.privacyCenterUrl || j?.privacyCenterUrl;
                 
                 if (!url) throw new Error("No privacyCenterUrl returned from backend");
@@ -348,8 +383,8 @@
                 console.error(e);
                 showLoader(false);
                 showMessage(
-                    "Could not open Privacy Center. Please try again.",
-                    "Error"
+                    "Could not open Privacy Center. Please wait a few more seconds and try again.",
+                    "Preparing Privacy Center"
                 );
             }
         }
@@ -502,15 +537,12 @@
                 const jobState = consentByJob[selectedJob.id] || { given: false };
 
                 content.innerHTML = `
-      <h2 class="text-2xl font-bold mb-6 text-gray-900">Application for ${selectedJob.title
-                    }</h2>
+      <h2 class="text-2xl font-bold mb-6 text-gray-900">Application for ${selectedJob.title}</h2>
       ${progress}
 
       <div class="flex space-x-2 mb-8 text-gray-600 text-sm">
-        <span class="bg-gray-100 px-3 py-1 rounded-full">${selectedJob.location
-                    }</span>
-        <span class="bg-gray-100 px-3 py-1 rounded-full">${selectedJob.type
-                    }</span>
+        <span class="bg-gray-100 px-3 py-1 rounded-full">${selectedJob.location}</span>
+        <span class="bg-gray-100 px-3 py-1 rounded-full">${selectedJob.type}</span>
       </div>
 
       <div class="p-6 border border-primary-blue rounded-xl bg-blue-50 shadow-md">
@@ -559,7 +591,6 @@
                 );
                 return;
             }
-            // mock submit UX
             const btn = [...document.querySelectorAll("button")].find(
                 (b) => b.textContent.trim() === "Submit Application"
             );
@@ -602,7 +633,7 @@
          ***********************/
         document.addEventListener("DOMContentLoaded", () => {
             renderJobList();
-            enableManagePrivacyButton();
+            enableManagePrivacyButton(false);
         });
     </script>
 </body>
