@@ -113,6 +113,9 @@
         let consentByJob = {}; 
         let consentTimestamps = {}; // Tracks exactly when consent was given for UI cooldowns
 
+        // ✅ Prefetch State
+        let consentPrefetchPromise = null;
+
         let selectedJob = {};
 
         const VIEWS = {
@@ -242,7 +245,38 @@
             });
         }
 
-        // Registration Flow
+        // ✅ Background Prefetch Logic
+        function prefetchConsent() {
+            // Silently load SDK in the background
+            loadCollectorSdkOnce().catch(() => {});
+
+            const name = "Kiran Kumar";
+            const email = "kirankumar@email.com";
+            const phone = "981271839123";
+
+            consentPrefetchPromise = fetch(CONSENT_REGISTER_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "register",
+                    name,
+                    email,
+                    phone,
+                    consentProfileId: CONSENT_PROFILE_ID,
+                    consentProfileVersion: 1,
+                }),
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("API not ok");
+                return res.json();
+            })
+            .catch(err => {
+                console.error("Prefetch failed:", err);
+                return null;
+            });
+        }
+
+        // Registration Flow (Instant Load)
         async function handleConsent() {
             try {
                 if (!selectedJob?.id) {
@@ -253,34 +287,19 @@
 
                 showLoader(true);
 
-                const name = "Kiran Kumar";
-                const email = "kirankumar@email.com";
-                const phone = "981271839123";
+                // Fallback: If prefetch somehow wasn't triggered, start it now
+                if (!consentPrefetchPromise) {
+                    prefetchConsent();
+                }
 
-                const res = await fetch(CONSENT_REGISTER_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        action: "register",
-                        name,
-                        email,
-                        phone,
-                        consentProfileId: CONSENT_PROFILE_ID,
-                        consentProfileVersion: 1,
-                    }),
-                });
+                // Await the prefetched data
+                const data = await consentPrefetchPromise;
+                consentPrefetchPromise = null; // Clear it so it gets a fresh token if needed later
 
-                const data = await res.json();
-
-                if (!res.ok) {
-                    console.error("Consent register backend error:", data);
+                if (!data) {
+                    console.error("Consent register backend error");
                     showLoader(false);
-                    showMessage(
-                        "Consent registration failed. Please try again.",
-                        "Error"
-                    );
+                    showMessage("Consent registration failed. Please try again.", "Error");
                     return;
                 }
 
@@ -323,8 +342,11 @@
                             "Consent accepted"
                         );
                     } else if (resp?.type === "consentCollect.closed") {
-                        // user closed; keep page as-is
+                        // User closed; keep page as-is, but re-trigger prefetch in case they click again
+                        prefetchConsent();
                     } else {
+                        // Error/denied
+                        prefetchConsent();
                         showMessage(
                             "Consent is required to proceed with the application.",
                             "Consent not completed"
@@ -355,7 +377,7 @@
             try {
                 showLoader(true);
                 const res = await fetch(CONSENT_REGISTER_URL, {
-                        method: "POST", // FIXED: Now making a POST request
+                        method: "POST",
                         headers: {
                             "Content-Type": "application/json",
                         },
@@ -447,13 +469,19 @@
       <h3 class="text-xl font-semibold mb-3 text-gray-800">Job Description</h3>
       <p class="text-gray-700 leading-relaxed whitespace-pre-wrap mb-8">${job.description}</p>
 
-      <button onclick="renderApplicationForm(1)"
+      <button onclick="startApplication()"
         class="w-full px-6 py-3 bg-primary-blue text-white rounded-lg hover:bg-light-blue transition text-lg font-semibold shadow-xl">
         APPLY FOR THE JOB
       </button>
     </div>
   `;
             currentView = VIEWS.JOB_DETAIL;
+        }
+
+        // ✅ Starts the application flow AND kicks off background consent fetching
+        function startApplication() {
+            prefetchConsent();
+            renderApplicationForm(1);
         }
 
         function renderApplicationForm(step) {
@@ -566,7 +594,7 @@
 
       <button id="submit-btn" onclick="submitApplication()"
         class="w-full mt-8 px-6 py-3 rounded-lg text-white transition text-lg font-semibold shadow-xl
-               ${jobState.given
+                ${jobState.given
                         ? "bg-primary-blue hover:bg-light-blue"
                         : "bg-gray-400 cursor-not-allowed"
                     }"
@@ -615,27 +643,4 @@
         Your application for ${selectedJob.title} has been successfully submitted.
       </h3>
       <p class="text-gray-600 mb-8 leading-relaxed">
-        HR will contact you soon regarding the next steps. You can revisit your privacy settings anytime via the header link.
-      </p>
-      <button onclick="renderJobList()" class="w-full px-6 py-3 bg-primary-blue text-white rounded-lg hover:bg-light-blue transition text-lg font-semibold shadow-xl">
-        Return to Job Listings
-      </button>
-      <p class="mt-4 text-sm text-gray-500">
-        <a href="https://www.consent.in/contact-us" target="_blank" class="underline">Contact Consentin</a>
-      </p>
-    </div>
-  `;
-            currentView = VIEWS.CONFIRMATION;
-        }
-
-        /***********************
-         * INIT               *
-         ***********************/
-        document.addEventListener("DOMContentLoaded", () => {
-            renderJobList();
-            enableManagePrivacyButton(false);
-        });
-    </script>
-</body>
-
-</html>
+        HR will contact you soon regarding the next steps. You can revisit your
